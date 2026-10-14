@@ -5,6 +5,7 @@ Turns an SMLight SLWF-08 HDMI-CEC board into a smart-home TV controller: power, 
 | Folder | Shows up as | Network |
 |---|---|---|
 | [`homespan/`](homespan) | HomeKit Television accessory in Apple Home ([HomeSpan](https://github.com/HomeSpan/HomeSpan), Arduino) | Wi-Fi, 5 GHz |
+| [`matter-over-thread/`](matter-over-thread) | Matter Basic Video Player, e.g. a media player in Home Assistant ([esp-matter](https://github.com/espressif/esp-matter), ESP-IDF) | Thread |
 
 ## 🛠 Hardware Setup
 Both versions run on a modified **SMLight SLWF-08** HDMI-CEC controller.

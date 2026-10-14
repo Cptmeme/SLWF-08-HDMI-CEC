@@ -1,0 +1,30 @@
+menu "HDMI-CEC"
+
+    config CEC_GPIO
+        int "CEC line GPIO"
+        default 3
+        help
+            GPIO wired to the HDMI CEC line. On the DOIT ESPC5-12 this is GPIO3, the
+            ESP-12F IO14 pad (pin 5) that the SLWF-08 connects to CEC.
+
+    config CEC_PHYSICAL_ADDRESS
+        hex "Physical address"
+        default 0x1000
+        help
+            HDMI physical address of the TV port the SLWF-08 is plugged into:
+            0x1000 for HDMI 1, 0x2000 for HDMI 2, and so on.
+
+    config CEC_HDMI_INPUTS
+        int "Number of TV HDMI inputs"
+        range 1 9
+        default 3
+        help
+            The input list is Live TV plus HDMI 1 up to this number.
+
+    config CEC_OSD_NAME
+        string "Name shown on the TV"
+        default "Matter"
+        help
+            Sent in <Set OSD Name>, at most 14 characters.
+
+endmenu
