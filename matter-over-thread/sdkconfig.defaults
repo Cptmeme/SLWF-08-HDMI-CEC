@@ -43,7 +43,13 @@ CONFIG_LIBSODIUM_USE_MBEDTLS_SHA=y
 # Root endpoint and the video player endpoint
 CONFIG_ESP_MATTER_MAX_DYNAMIC_ENDPOINT_COUNT=3
 
+# Enable OTA Requestor
 CONFIG_ENABLE_OTA_REQUESTOR=y
+# Build build/hdmi_cec_tv-ota.bin, and roll back an update that doesn't come up (see app_main.cpp)
+CONFIG_CHIP_OTA_IMAGE_BUILD=y
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+# Reported SoftwareVersion: must equal PROJECT_VER_NUMBER in CMakeLists.txt (the build checks)
+CONFIG_DEVICE_SOFTWARE_VERSION_NUMBER=2
 
 # The SLWF-08 has no button: factory reset with "matter esp factoryreset" on the UART console
 CONFIG_ENABLE_CHIP_SHELL=y
