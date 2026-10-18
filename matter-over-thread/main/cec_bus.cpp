@@ -46,6 +46,9 @@ static QueueHandle_t s_transmit;
 static volatile uint8_t s_address = CEC_BROADCAST;
 
 static uint32_t s_now;
+static volatile uint32_t s_received;
+static volatile uint32_t s_sent;
+static volatile uint32_t s_failed;
 static bool s_line = true;
 static uint32_t s_fall; // last falling edge
 static uint32_t s_rise; // last rising edge, the line has been free since
@@ -81,6 +84,13 @@ static inline void IRAM_ATTR pull_low(bool low)
 
 static void IRAM_ATTR post(bool sent, bool ack, const cec_frame_t *frame, BaseType_t *woken)
 {
+    if (!sent) {
+        s_received++;
+    } else if (ack) {
+        s_sent++;
+    } else {
+        s_failed++;
+    }
     cec_event_t event = {};
     event.type = sent ? cec_event_t::SENT : cec_event_t::RECEIVED;
     event.ack = ack;
@@ -332,4 +342,14 @@ void cec_bus_set_logical_address(uint8_t address)
 bool cec_bus_send(const cec_frame_t *frame)
 {
     return xQueueSend(s_transmit, frame, 0) == pdTRUE;
+}
+
+void cec_bus_get_status(cec_bus_status_t *status)
+{
+    status->line_high = gpio_get_level(s_pin);
+    status->receiving = s_receiving;
+    status->transmitting = s_tx_state != TX_IDLE;
+    status->received = s_received;
+    status->sent = s_sent;
+    status->failed = s_failed;
 }

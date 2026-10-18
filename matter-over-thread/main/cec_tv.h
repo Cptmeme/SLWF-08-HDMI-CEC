@@ -19,6 +19,9 @@ void start();
 // The On/Off attribute was written by a controller
 void set_power(bool on);
 
+// Add "matter esp cec" to the console
+void register_console_commands();
+
 chip::app::Clusters::MediaPlayback::Delegate *media_playback();
 chip::app::Clusters::MediaInput::Delegate *media_input();
 chip::app::Clusters::KeypadInput::Delegate *keypad_input();

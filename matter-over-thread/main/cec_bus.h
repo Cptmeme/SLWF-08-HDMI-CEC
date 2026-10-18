@@ -23,6 +23,15 @@ typedef struct {
     cec_frame_t frame;
 } cec_event_t;
 
+typedef struct {
+    bool line_high;    // the line is released right now
+    bool receiving;    // a frame is on the bus
+    bool transmitting; // a frame is waiting for a free bus or being sent
+    uint32_t received; // frames received
+    uint32_t sent;     // frames sent and acknowledged
+    uint32_t failed;   // frames not acknowledged, or that kept losing arbitration
+} cec_bus_status_t;
+
 // Start the bus. Received frames and transmit results are posted to `events`.
 esp_err_t cec_bus_init(gpio_num_t pin, QueueHandle_t events);
 
@@ -31,3 +40,5 @@ void cec_bus_set_logical_address(uint8_t address);
 
 // Queue a frame. Frames go out in order; one that is not acknowledged is retried twice.
 bool cec_bus_send(const cec_frame_t *frame);
+
+void cec_bus_get_status(cec_bus_status_t *status);

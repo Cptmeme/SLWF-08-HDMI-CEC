@@ -3,11 +3,15 @@
 #include <atomic>
 #include <initializer_list>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <esp_log.h>
 #include <esp_matter.h>
 #include <nvs.h>
+#if CONFIG_ENABLE_CHIP_SHELL
+#include <esp_matter_console.h>
+#endif
 
 #include <app/CommandResponseHelper.h>
 #include <app/reporting/reporting.h>
@@ -84,17 +88,20 @@ static std::atomic<uint8_t> s_playback_state{to_underlying(PlaybackState::kNotPl
 static std::atomic<uint8_t> s_port_source[16]; // logical address of the source on each TV port
 static char s_input_names[INPUT_COUNT][INPUT_NAME_SIZE];
 
-static void send(uint8_t destination, std::initializer_list<uint8_t> data)
+static void send(uint8_t destination, const uint8_t *data, size_t length)
 {
     cec_frame_t frame = {};
     frame.blocks[0] = s_address << 4 | destination;
-    for (uint8_t byte : data) {
-        frame.blocks[++frame.length] = byte;
-    }
-    frame.length++;
+    memcpy(&frame.blocks[1], data, length);
+    frame.length = length + 1;
     if (!cec_bus_send(&frame)) {
         ESP_LOGW(TAG, "transmit queue full, dropped %02X:%02X", frame.blocks[0], frame.blocks[1]);
     }
+}
+
+static void send(uint8_t destination, std::initializer_list<uint8_t> data)
+{
+    send(destination, data.begin(), data.size());
 }
 
 static void press_key(uint8_t destination, uint8_t key)
@@ -311,13 +318,22 @@ static void handle(const cec_frame_t *frame)
 static bool wait_until_sent()
 {
     cec_event_t event;
-    while (xQueueReceive(s_events, &event, portMAX_DELAY)) {
+    bool warned = false;
+    while (true) {
+        if (!xQueueReceive(s_events, &event, pdMS_TO_TICKS(2000))) {
+            if (!warned) {
+                cec_bus_status_t status;
+                cec_bus_get_status(&status);
+                ESP_LOGW(TAG, "still waiting for a free CEC bus, the line is %s", status.line_high ? "high" : "low");
+                warned = true;
+            }
+            continue;
+        }
         if (event.type == cec_event_t::SENT) {
             return event.ack;
         }
         handle(&event.frame);
     }
-    return false;
 }
 
 // Poll each playback address; the first one nobody acknowledges is ours (CEC 10.2.1)
@@ -555,6 +571,37 @@ public:
     }
 };
 
+#if CONFIG_ENABLE_CHIP_SHELL
+// matter esp cec                               bus status
+// matter esp cec send <destination> <byte> ...  send a frame, e.g. "cec send 0 04" for <Image View On>
+static esp_err_t console_cec(int argc, char **argv)
+{
+    if (argc == 0) {
+        cec_bus_status_t status;
+        cec_bus_get_status(&status);
+        printf("line %s, %s%s\n", status.line_high ? "high" : "low", status.receiving ? "receiving " : "",
+               status.transmitting ? "transmitting" : "");
+        printf("logical address %X, physical address %X.%X.%X.%X\n", s_address.load(),
+               CONFIG_CEC_PHYSICAL_ADDRESS >> 12, (CONFIG_CEC_PHYSICAL_ADDRESS >> 8) & 0xF,
+               (CONFIG_CEC_PHYSICAL_ADDRESS >> 4) & 0xF, CONFIG_CEC_PHYSICAL_ADDRESS & 0xF);
+        printf("frames received %lu, sent %lu, not acknowledged %lu\n", (unsigned long)status.received,
+               (unsigned long)status.sent, (unsigned long)status.failed);
+        printf("TV %s, input %s\n", s_tv_on ? "on" : "off", s_input_names[s_current_input]);
+        return ESP_OK;
+    }
+    if (strcmp(argv[0], "send") == 0 && argc >= 3 && argc - 2 < CEC_MAX_BLOCKS) {
+        uint8_t data[CEC_MAX_BLOCKS - 1];
+        for (int i = 2; i < argc; i++) {
+            data[i - 2] = strtoul(argv[i], nullptr, 16);
+        }
+        send(strtoul(argv[1], nullptr, 16) & 0xF, data, argc - 2);
+        return ESP_OK;
+    }
+    printf("usage: matter esp cec [send <destination> <byte> ...]\n");
+    return ESP_ERR_INVALID_ARG;
+}
+#endif
+
 static PlaybackDelegate s_playback_delegate;
 static InputDelegate s_input_delegate;
 static KeypadDelegate s_keypad_delegate;
@@ -581,6 +628,18 @@ void start()
 void set_power(bool on)
 {
     power(on);
+}
+
+void register_console_commands()
+{
+#if CONFIG_ENABLE_CHIP_SHELL
+    static const esp_matter::console::command_t command = {
+        .name = "cec",
+        .description = "CEC bus status, or send a frame. Usage: matter esp cec [send <destination> <byte> ...]",
+        .handler = console_cec,
+    };
+    esp_matter::console::add_commands(&command, 1);
+#endif
 }
 
 MediaPlayback::Delegate *media_playback()
