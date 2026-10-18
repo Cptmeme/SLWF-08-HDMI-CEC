@@ -51,7 +51,7 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 # Reported SoftwareVersion: must equal PROJECT_VER_NUMBER in CMakeLists.txt (the build checks)
 CONFIG_DEVICE_SOFTWARE_VERSION_NUMBER=2
 
-# The SLWF-08 has no button: factory reset with "matter esp factoryreset" on the UART console
+# Console on the UART pads: "matter esp cec" for the bus status, "matter esp factoryreset" to reset the pairing
 CONFIG_ENABLE_CHIP_SHELL=y
 
 # The CEC timer interrupt keeps running while the cache is off for flash writes

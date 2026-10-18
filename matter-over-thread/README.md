@@ -25,7 +25,9 @@ writes to flash. It is a native ESP-IDF driver, not the Arduino CEC library the
 
 - Flash over the UART pads (TXD/RXD = GPIO11/GPIO12), holding the IO0 pad (GPIO28) low at reset.
   The console uses the same pads.
-- The board has no button: factory reset with `matter esp factoryreset` on the console.
+- The **FLH** button is on the IO0 pad (GPIO28). Hold it while powering up for download mode.
+  Hold it for 10 s while the device runs, then release, to reset the pairing (a Matter factory
+  reset that keeps renamed inputs). `matter esp factoryreset` on the console does the same.
 
 ## Configuration
 

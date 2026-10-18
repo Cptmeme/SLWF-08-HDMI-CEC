@@ -8,7 +8,10 @@
 #include <esp_matter_console.h>
 #include <esp_matter_ota.h>
 
+#include <app_reset.h>
+#include <button_gpio.h>
 #include <common_macros.h>
+#include <iot_button.h>
 
 #include <app-common/zap-generated/callback.h>
 #include <app/PluginApplicationCallbacks.h>
@@ -36,6 +39,11 @@ constexpr auto k_timeout_seconds = 300;
 // Basic Video Player (Matter 1.5 Device Library, 10.2)
 constexpr uint32_t k_basic_video_player_device_type_id = 0x0028;
 constexpr uint8_t k_basic_video_player_device_type_version = 2;
+
+// The SLWF-08's FLH button: the ESP-12F IO0 pad, GPIO28 on the ESPC5-12.
+// Held at power-up it selects download mode; held for 10 s while running it resets the pairing.
+#define RESET_BUTTON_GPIO 28
+#define RESET_BUTTON_HOLD_MS 10000
 
 static uint16_t s_video_player_endpoint_id;
 
@@ -266,6 +274,27 @@ static void app_ota_verify_start()
     esp_timer_start_periodic(s_ota_verify_timer, 10 * 1000000);
 }
 
+static void reset_button_pressed_cb(void *button, void *data)
+{
+    ESP_LOGI(TAG, "FLH pressed: hold it for 10 s, then release, to reset the pairing");
+}
+
+static void reset_button_init()
+{
+    button_config_t config = {};
+    config.long_press_time = RESET_BUTTON_HOLD_MS;
+    button_gpio_config_t gpio_config = {};
+    gpio_config.gpio_num = RESET_BUTTON_GPIO;
+    gpio_config.active_level = 0;
+    button_handle_t button = nullptr;
+    if (iot_button_new_gpio_device(&config, &gpio_config, &button) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create the reset button");
+        return;
+    }
+    iot_button_register_cb(button, BUTTON_PRESS_DOWN, nullptr, reset_button_pressed_cb, nullptr);
+    app_reset_button_register(button);
+}
+
 extern "C" void app_main()
 {
     nvs_flash_init();
@@ -293,6 +322,7 @@ extern "C" void app_main()
     app_ota_verify_start();
 
     cec_tv::start();
+    reset_button_init();
 
 #if CONFIG_ENABLE_CHIP_SHELL
     esp_matter::console::diagnostics_register_commands();
